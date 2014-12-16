@@ -759,7 +759,6 @@ class Slurper implements Runnable {
     private boolean addToStream(final Operation operation, final Timestamp<?> currentTimestamp, final DBObject data, final String collection)
             throws InterruptedException {
     	
-    	int condition = 0;
     	if(collection.equals("catalog")){
     	if(categoryMap.size() == 0){
     		DBCollection categoryCollection = slurpedDb.getCollection("categories");
@@ -788,9 +787,10 @@ class Slurper implements Runnable {
 				addSubCategoryMap.put("subcategory_uri", subcategoryURIMap.get(i.toString()));
 
 				categoryAddList.add(addSubCategoryMap);
-			}
-			if(categoryMap.get(i.toString()) == null && subcategoryMap.get(i.toString()) == null){
-				condition = 1;
+			}else{
+				Map<String,String> addCategoryMap = new HashMap<String,String>();
+				addCategoryMap.put("cat_id", i.toString());
+				categoryAddList.add(addCategoryMap);
 			}
 		}
 		data.put("categories", categoryAddList);
@@ -800,23 +800,23 @@ class Slurper implements Runnable {
 		List<Map> typeAddList = new ArrayList<Map>();
 		for(Object obj:typeArray){
 			Integer i = new Double(obj.toString()).intValue();
-			Map<String,String> addTypeMap = new HashMap<String,String>();
-			addTypeMap.put("id", i.toString());
-			addTypeMap.put("product_type", typeMap.get(i.toString()));
-			addTypeMap.put("type_uri", typeURIMap.get(i.toString()));
-			typeAddList.add(addTypeMap);
-			if(typeMap.get(i.toString()) == null){
-				condition = 1;
+			if(typeMap.get(i.toString()) != null){
+				Map<String,String> addTypeMap = new HashMap<String,String>();
+				addTypeMap.put("id", i.toString());
+				addTypeMap.put("product_type", typeMap.get(i.toString()));
+				addTypeMap.put("type_uri", typeURIMap.get(i.toString()));
+			
+				typeAddList.add(addTypeMap);
+			}else{
+				Map<String,String> addTypeMap = new HashMap<String,String>();
+				addTypeMap.put("id", i.toString());
+				typeAddList.add(addTypeMap);
 			}
 
 		}
 		data.put("types", typeAddList);
     	}
 		
-    	if(condition == 1){
-    		return false;
-    	}
-    	
         if (logger.isTraceEnabled()) {
             logger.trace("addToStream - operation [{}], currentTimestamp [{}], data [{}], collection [{}]", operation, currentTimestamp,
                     data, collection);
