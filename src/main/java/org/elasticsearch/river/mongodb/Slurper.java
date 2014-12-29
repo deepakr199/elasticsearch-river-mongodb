@@ -770,26 +770,32 @@ class Slurper implements Runnable {
 		Object[] categoryArray = categoryList.toArray();
 		List<Map> categoryAddList = new ArrayList<Map>();
 		for(Object obj:categoryArray){
-			Integer i = new Double(obj.toString()).intValue();
-			if(categoryMap.get(i.toString()) != null){
-				Map<String,String> addCategoryMap = new HashMap<String,String>();
-				addCategoryMap.put("cat_id", i.toString());
-				addCategoryMap.put("category_name", categoryMap.get(i.toString()));
-				addCategoryMap.put("category", categoryMap.get(i.toString()));
-				addCategoryMap.put("category_uri", categoryURIMap.get(i.toString()));
-
-				categoryAddList.add(addCategoryMap);
-			}else if(subcategoryMap.get(i.toString()) != null){
-				Map<String,String> addSubCategoryMap = new HashMap<String,String>();
-				addSubCategoryMap.put("subcat_id", i.toString());
-				addSubCategoryMap.put("subcategory_name", subcategoryMap.get(i.toString()));
-				addSubCategoryMap.put("category", subcategoryMap.get(i.toString()));
-				addSubCategoryMap.put("subcategory_uri", subcategoryURIMap.get(i.toString()));
-
-				categoryAddList.add(addSubCategoryMap);
+			if(obj != null){
+				Integer i = new Double(obj.toString()).intValue();
+				if(categoryMap.get(i.toString()) != null){
+					Map<String,String> addCategoryMap = new HashMap<String,String>();
+					addCategoryMap.put("cat_id", i.toString());
+					addCategoryMap.put("category_name", categoryMap.get(i.toString()));
+					addCategoryMap.put("category", categoryMap.get(i.toString()));
+					addCategoryMap.put("category_uri", categoryURIMap.get(i.toString()));
+	
+					categoryAddList.add(addCategoryMap);
+				}else if(subcategoryMap.get(i.toString()) != null){
+					Map<String,String> addSubCategoryMap = new HashMap<String,String>();
+					addSubCategoryMap.put("subcat_id", i.toString());
+					addSubCategoryMap.put("subcategory_name", subcategoryMap.get(i.toString()));
+					addSubCategoryMap.put("category", subcategoryMap.get(i.toString()));
+					addSubCategoryMap.put("subcategory_uri", subcategoryURIMap.get(i.toString()));
+	
+					categoryAddList.add(addSubCategoryMap);
+				}else{
+					Map<String,String> addCategoryMap = new HashMap<String,String>();
+					addCategoryMap.put("cat_id", i.toString());
+					categoryAddList.add(addCategoryMap);
+				}
 			}else{
 				Map<String,String> addCategoryMap = new HashMap<String,String>();
-				addCategoryMap.put("cat_id", i.toString());
+				addCategoryMap.put("cat_id", "");
 				categoryAddList.add(addCategoryMap);
 			}
 		}
@@ -799,17 +805,23 @@ class Slurper implements Runnable {
 		Object[] typeArray = typeList.toArray();
 		List<Map> typeAddList = new ArrayList<Map>();
 		for(Object obj:typeArray){
-			Integer i = new Double(obj.toString()).intValue();
-			if(typeMap.get(i.toString()) != null){
-				Map<String,String> addTypeMap = new HashMap<String,String>();
-				addTypeMap.put("id", i.toString());
-				addTypeMap.put("product_type", typeMap.get(i.toString()));
-				addTypeMap.put("type_uri", typeURIMap.get(i.toString()));
-			
-				typeAddList.add(addTypeMap);
+			if(obj != null){
+				Integer i = new Double(obj.toString()).intValue();
+				if(typeMap.get(i.toString()) != null){
+					Map<String,String> addTypeMap = new HashMap<String,String>();
+					addTypeMap.put("id", i.toString());
+					addTypeMap.put("product_type", typeMap.get(i.toString()));
+					addTypeMap.put("type_uri", typeURIMap.get(i.toString()));
+				
+					typeAddList.add(addTypeMap);
+				}else{
+					Map<String,String> addTypeMap = new HashMap<String,String>();
+					addTypeMap.put("id", i.toString());
+					typeAddList.add(addTypeMap);
+				}
 			}else{
 				Map<String,String> addTypeMap = new HashMap<String,String>();
-				addTypeMap.put("id", i.toString());
+				addTypeMap.put("id", "");
 				typeAddList.add(addTypeMap);
 			}
 
