@@ -3,6 +3,13 @@ package org.elasticsearch.river.mongodb;
 import static org.elasticsearch.client.Requests.deleteRequest;
 import static org.elasticsearch.client.Requests.indexRequest;
 
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.SearchHit;
+
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.util.Date;
 import java.util.HashMap;
@@ -34,6 +41,7 @@ import org.elasticsearch.common.collect.Maps;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.river.mongodb.util.MongoDBRiverHelper;
 import org.elasticsearch.threadpool.ThreadPool.Info;
 import org.elasticsearch.threadpool.ThreadPoolStats.Stats;
@@ -181,6 +189,20 @@ public class MongoDBRiverBulkProcessor {
     }
 
     public void addBulkRequest(String id, XContentBuilder source, String routing, String parent) {
+    	if(index.equals("prodinventoryindex")){
+    		try{
+    			JSONObject json = new JSONObject(source.string());
+    			Map<String,Object> parentMap = getDocumentId("prodcatalogindex", "id", Double.valueOf(json.get("id").toString()).intValue());
+    			if(parentMap != null && json.get("stock_status") != null){
+    				parentMap.put("oos_status",json.get("stock_status"));
+    				XContentBuilder parentSource = XContentFactory.jsonBuilder().map(parentMap);
+    				bulkProcessor.add(indexRequest("prodcatalogindex").type(type).id(parentMap.get("_id").toString()).source(parentSource).routing(routing).parent(parent));
+    			}
+    		}catch(Exception e){
+    			logger.error("{}",e.getMessage());
+    			logger.error("Failed to move data from inventory to catalog");
+    		}
+    	}
         bulkProcessor.add(indexRequest(index).type(type).id(id).source(source).routing(routing).parent(parent));
         insertedDocuments.incrementAndGet();
     }
@@ -202,6 +224,21 @@ public class MongoDBRiverBulkProcessor {
         return bulkProcessor;
     }
 
+    public Map<String,Object> getDocumentId(String index, String field, int value){
+    	Map<String, Object> source = null;
+    	SearchResponse response = client.prepareSearch(index)
+    	        .setSearchType(SearchType.DFS_QUERY_THEN_FETCH)
+    	        .setQuery(QueryBuilders.termQuery(field, value))            
+    	        .setFrom(0).setSize(1)
+    	        .execute()
+    	        .actionGet();
+    	for (SearchHit hit : response.getHits()) {
+    	    source = hit.getSource();
+    	    return source;
+    	}
+    	return source;
+    }
+    
     private void checkBulkProcessorAvailability() {
         while (!isBulkProcessorAvailable()) {
             try {

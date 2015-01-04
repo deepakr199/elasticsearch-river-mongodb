@@ -154,6 +154,11 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20090211</version>
+		</dependency>
+		<dependency>
 			<groupId>com.gmongo</groupId>
 			<artifactId>gmongo</artifactId>
 			<version>${gmongo.version}</version>
