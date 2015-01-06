@@ -188,27 +188,47 @@ public class MongoDBRiverBulkProcessor {
         insertedDocuments.incrementAndGet();
     }
 
-    public void addBulkRequest(String id, XContentBuilder source, String routing, String parent) {
-    	if(index.equals("prodinventoryindex")){
-    		try{
-    			JSONObject json = new JSONObject(source.string());
-    			Map<String,Object> parentMap = getDocumentId("prodcatalogindex", "id", Double.valueOf(json.get("id").toString()).intValue());
-    			if(parentMap != null && json.get("stock_status") != null){
-    				Map<String,Object> stockStatus = new HashMap<String,Object>();
-    				stockStatus.put("stock_status", json.get("stock_status"));
-    				parentMap.put("inventory",stockStatus);
-    				XContentBuilder parentSource = XContentFactory.jsonBuilder().map(parentMap);
-    				bulkProcessor.add(indexRequest("prodcatalogindex").type(type).id(parentMap.get("_id").toString()).source(parentSource).routing(routing).parent(parent));
-    			}
-    		}catch(Exception e){
-    			logger.error("{}",e.getMessage());
-    			logger.error("Failed to move data from inventory to catalog");
-    		}
-    	}
-        bulkProcessor.add(indexRequest(index).type(type).id(id).source(source).routing(routing).parent(parent));
-        insertedDocuments.incrementAndGet();
-    }
-
+	public void addBulkRequest(String id, XContentBuilder source, String routing, String parent) {
+		if (index.equals("prodinventoryindex")) {
+			try {
+				JSONObject json = new JSONObject(source.string());
+				Map<String, Object> catalogMap = getDocument("prodcatalogindex", "id", Double.valueOf(json.get("id").toString()).intValue());
+				if (catalogMap != null && json.get("stock_status") != null) {
+					Map<String, Object> stockStatus = new HashMap<String, Object>();
+					stockStatus.put("stock_status", json.get("stock_status"));
+					catalogMap.put("inventory", stockStatus);
+					XContentBuilder parentSource = XContentFactory.jsonBuilder().map(catalogMap);
+					bulkProcessor.add(indexRequest("prodcatalogindex").type(type).id(catalogMap.get("_id").toString()).source(parentSource)
+							.routing(routing).parent(parent));
+				}
+			} catch (Exception e) {
+				logger.error("{}", e.getMessage());
+				logger.error("Failed to move data from inventory to catalog");
+			}
+			bulkProcessor.add(indexRequest(index).type(type).id(id).source(source).routing(routing).parent(parent));
+			insertedDocuments.incrementAndGet();
+		} else if (index.contains("prodcatalog")) {
+			JSONObject json = null;
+			try {
+				json = new JSONObject(source.string());
+				Map<String, Object> inventoryMap = getDocument("prodinventoryindex", "id", Double.valueOf(json.get("id").toString())
+						.intValue());
+				if (inventoryMap != null && inventoryMap.get("stock_status") != null) {
+					JSONObject stockJson = new JSONObject();
+					stockJson.put("stock_status", inventoryMap.get("stock_status"));
+					json.put("inventory", stockJson);
+				}
+			} catch (Exception e) {
+				logger.error("{}", e.getMessage());
+				logger.error("Failed to move data from catalog to index");
+			}
+			bulkProcessor.add(indexRequest(index).type(type).id(id).source(json.toString()).routing(routing).parent(parent));
+			insertedDocuments.incrementAndGet();
+		} else {
+			bulkProcessor.add(indexRequest(index).type(type).id(id).source(source).routing(routing).parent(parent));
+			insertedDocuments.incrementAndGet();
+		}
+	}
     // public void updateBulkRequest(String id, XContentBuilder source, String
     // routing, String parent) {
     // deleteBulkRequest(id, routing, parent);
@@ -226,7 +246,7 @@ public class MongoDBRiverBulkProcessor {
         return bulkProcessor;
     }
 
-    public Map<String,Object> getDocumentId(String index, String field, int value){
+    public Map<String,Object> getDocument(String index, String field, int value){
     	Map<String, Object> source = null;
     	SearchResponse response = client.prepareSearch(index)
     	        .setSearchType(SearchType.DFS_QUERY_THEN_FETCH)
