@@ -194,7 +194,9 @@ public class MongoDBRiverBulkProcessor {
     			JSONObject json = new JSONObject(source.string());
     			Map<String,Object> parentMap = getDocumentId("prodcatalogindex", "id", Double.valueOf(json.get("id").toString()).intValue());
     			if(parentMap != null && json.get("stock_status") != null){
-    				parentMap.put("oos_status",json.get("stock_status"));
+    				Map<String,Object> stockStatus = new HashMap<String,Object>();
+    				stockStatus.put("stock_status", json.get("stock_status"));
+    				parentMap.put("inventory",stockStatus);
     				XContentBuilder parentSource = XContentFactory.jsonBuilder().map(parentMap);
     				bulkProcessor.add(indexRequest("prodcatalogindex").type(type).id(parentMap.get("_id").toString()).source(parentSource).routing(routing).parent(parent));
     			}
