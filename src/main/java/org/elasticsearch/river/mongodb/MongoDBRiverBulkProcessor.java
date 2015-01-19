@@ -212,10 +212,6 @@ public class MongoDBRiverBulkProcessor {
 			JSONObject json = null;
 			try {
 				json = new JSONObject(source.string());
-				Map<String, Object> boostMap = getDocumentById("boostindex", id);
-				if(boostMap != null){
-					json.put("boost", boostMap.get("boost"));
-				}
 				Map<String, Object> inventoryMap = getDocument("prodinventoryindex", "id", Double.valueOf(json.get("id").toString())
 						.intValue());
 				if (inventoryMap != null && inventoryMap.get("stock_status") != null) {
@@ -264,13 +260,6 @@ public class MongoDBRiverBulkProcessor {
     	    return source;
     	}
     	return source;
-    }
-    
-    public Map<String,Object> getDocumentById(String index, String id){
-    	GetResponse response = client.prepareGet(index, "page", id)
-    	        .execute()
-    	        .actionGet();
-    	return response.getSource();
     }
     
     private void checkBulkProcessorAvailability() {

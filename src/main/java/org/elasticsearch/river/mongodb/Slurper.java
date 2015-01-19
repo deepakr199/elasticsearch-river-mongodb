@@ -73,7 +73,7 @@ class Slurper implements Runnable {
     private static Map<String,String> categoryURIMap = new HashMap<String,String>();
     private static Map<String,String> subcategoryURIMap = new HashMap<String,String>();
     private static Map<String,String> typeURIMap = new HashMap<String,String>();
-
+    private static Map<String,Object> productBoostMap = new HashMap<String,Object>();
 
     public Slurper(List<ServerAddress> mongoServers, MongoDBRiverDefinition definition, SharedContext context, Client client) {
         this.definition = definition;
@@ -763,9 +763,20 @@ class Slurper implements Runnable {
     	if(categoryMap.size() == 0){
     		DBCollection categoryCollection = slurpedDb.getCollection("categories");
     		initializeMap(categoryCollection);
-
+    	}
+    	if(productBoostMap.size() == 0){
+    		DBCollection productBoostColl = slurpedDb.getCollection("product_boost");
+    		DBCursor dbCursor = productBoostColl.find();
+    		while(dbCursor.hasNext()){
+    			DBObject dbObject = dbCursor.next();
+    			productBoostMap.put(dbObject.get("_id").toString(), dbObject.get("boost"));
+    		}
     	}
 
+    	if(productBoostMap.get(data.get("_id").toString()) != null){
+    		data.put("boost",productBoostMap.get(data.get("_id").toString()));
+    	}
+    	
     	BasicDBList categoryList = (BasicDBList) data.get("categories");
 		Object[] categoryArray = categoryList.toArray();
 		List<Map> categoryAddList = new ArrayList<Map>();
