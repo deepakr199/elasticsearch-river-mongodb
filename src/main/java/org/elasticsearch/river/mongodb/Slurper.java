@@ -763,6 +763,10 @@ class Slurper implements Runnable {
     	if(categoryMap.size() == 0){
     		DBCollection categoryCollection = slurpedDb.getCollection("categories");
     		initializeMap(categoryCollection);
+    		logger.warn("Category map {}",categoryMap);
+    		logger.warn("Sub Category map {}",subcategoryMap);
+    		logger.warn("Type map {}",typeMap);
+    		logger.warn("Category size - {}, Subcategory size - {}, Type size - {}",categoryMap.size(),subcategoryMap.size(),typeMap.size());
     	}
     	if(productBoostMap.size() == 0){
     		DBCollection productBoostColl = slurpedDb.getCollection("product_boost");
@@ -771,9 +775,12 @@ class Slurper implements Runnable {
     			DBObject dbObject = dbCursor.next();
     			productBoostMap.put(dbObject.get("_id").toString(), dbObject.get("boost"));
     		}
+    		logger.warn("Product Boost Map {}",productBoostMap);
+    		logger.warn("Product Boost size {}",productBoostMap.size());
     	}
 
     	if(productBoostMap.get(data.get("_id").toString()) != null){
+    		logger.warn("Adding boost for id {}",data.get("_id").toString());
     		data.put("boost",productBoostMap.get(data.get("_id").toString()));
     	}
     	
