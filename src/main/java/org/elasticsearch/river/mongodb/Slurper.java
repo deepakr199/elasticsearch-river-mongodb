@@ -68,6 +68,7 @@ class Slurper implements Runnable {
     private DB oplogDb;
     private DBCollection oplogCollection;
     private final AtomicLong totalDocuments = new AtomicLong();
+    private Map<String,Object> categoryObjectMap = null;
     private Map<String,String> categoryMap = null;
     private Map<String,String> categoryURIMap = null;
     private Map<String,String> categoryLevelMap = null;
@@ -96,6 +97,7 @@ class Slurper implements Runnable {
     private void initializeCategoryMap(DBCollection parentCollection){
 		
 		DBCursor dbCursor = parentCollection.find();
+	    categoryObjectMap = new ConcurrentHashMap<String,Object>();
 	    categoryMap = new ConcurrentHashMap<String,String>();
 	    categoryURIMap = new ConcurrentHashMap<String,String>();
 	    categoryLevelMap = new ConcurrentHashMap<String,String>();
@@ -106,7 +108,7 @@ class Slurper implements Runnable {
 			categoryMap.put(dbObject.get("id").toString(), dbObject.get("title").toString());
 			categoryURIMap.put(dbObject.get("id").toString(), String.valueOf(dbObject.get("uri")));
 			categoryLevelMap.put(dbObject.get("id").toString(), String.valueOf(dbObject.get("level")));
-
+			categoryObjectMap.put(dbObject.get("id").toString(), dbObject);
 
 /*			if(dbObject.get("sub_categories") != null){
 			BasicDBList subCategoryList = (BasicDBList)dbObject.get("sub_categories");
@@ -860,14 +862,11 @@ class Slurper implements Runnable {
     		BasicDBList childrenList = (BasicDBList) data.get("children");
     		if(childrenList != null){
     			Object[] childrenArray = childrenList.toArray();
-    			List<Map> childrenAddList = new ArrayList<Map>();
+    			List<Object> childrenAddList = new ArrayList<Object>();
     			for(Object obj:childrenArray){
-					if(obj != null && categoryMap.get(obj.toString()) != null){
+					if(obj != null && categoryObjectMap.get(obj.toString()) != null){
 						Map<String,String> addChildrenMap = new HashMap<String,String>();
-						addChildrenMap.put("id", obj.toString());
-						addChildrenMap.put("children_name", categoryMap.get(obj.toString()));
-						addChildrenMap.put("children_uri", categoryURIMap.get(obj.toString()));
-						childrenAddList.add(addChildrenMap);
+						childrenAddList.add(categoryObjectMap.get(obj.toString()));
 					}
     			}
     			data.put("children", childrenAddList);
@@ -880,14 +879,17 @@ class Slurper implements Runnable {
 				data.put("parent_uri", categoryURIMap.get(parentObject.toString()));
 			}
 			
-			List<String> breadcrumbs = new ArrayList<String>();
+			List<Map> breadcrumbs = new ArrayList<Map>();
 			int level = (Integer)data.get("level");
 			for(int i=(Integer)data.get("level");i>2;i--){
 				DBObject parentCategory = getParentCategory(parentObject);
 				if(parentCategory == null){
 					break;
 				}
-				breadcrumbs.add(String.valueOf(parentCategory.get("title")));
+				Map<String,String> breadcrumbMap = new HashMap<String,String>();
+				breadcrumbMap.put("name",String.valueOf(parentCategory.get("title")).trim());
+				breadcrumbMap.put("uri",String.valueOf(parentCategory.get("uri")));
+				breadcrumbs.add(breadcrumbMap);
 				parentObject = ((Number) parentCategory.get("parent")).intValue();
 			}
 			data.put("breadcrumb",breadcrumbs);
@@ -924,6 +926,7 @@ class Slurper implements Runnable {
         categoryLevelMap = null;
         productBoostMap = null;
         filterMap = null;
+        categoryObjectMap = null;
     }
     
     private DBObject getParentCategory(int categoryId){
