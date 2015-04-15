@@ -783,7 +783,7 @@ class Slurper implements Runnable {
 
     private boolean addToStream(final Operation operation, final Timestamp<?> currentTimestamp, final DBObject data, final String collection)
             throws InterruptedException {
-    	if(collection.equals("catalog_search_test")){
+    	if(collection.equals("catalog")){
     	if(categoryMap == null){
     		DBCollection categoryCollection = slurpedDb.getCollection("categories_test");
     		initializeCategoryMap(categoryCollection);
@@ -859,6 +859,7 @@ class Slurper implements Runnable {
         		DBCollection categoryCollection = slurpedDb.getCollection("categories_test");
         		initializeCategoryMap(categoryCollection);
         	}
+    		//first level children
     		BasicDBList childrenList = (BasicDBList) data.get("children");
     		if(childrenList != null){
     			Object[] childrenArray = childrenList.toArray();
@@ -866,6 +867,34 @@ class Slurper implements Runnable {
     			for(Object obj:childrenArray){
 					if(obj != null && categoryObjectMap.get(obj.toString()) != null){
 						Map<String,String> addChildrenMap = new HashMap<String,String>();
+						DBObject childData = (DBObject)categoryObjectMap.get(obj.toString());
+						//second level children
+			    		BasicDBList childrenList1 = (BasicDBList) childData.get("children");
+			    		if(childrenList1 != null){
+			    			Object[] childrenArray1 = childrenList1.toArray();
+			    			List<Object> childrenAddList1 = new ArrayList<Object>();
+			    			for(Object obj1:childrenArray1){
+								if(obj1 != null && categoryObjectMap.get(obj1.toString()) != null){
+									Map<String,String> addChildrenMap1 = new HashMap<String,String>();
+									DBObject childData1 = (DBObject)categoryObjectMap.get(obj1.toString());
+									//third level children
+						    		BasicDBList childrenList2 = (BasicDBList) childData1.get("children");
+						    		if(childrenList2 != null){
+						    			Object[] childrenArray2 = childrenList2.toArray();
+						    			List<Object> childrenAddList2 = new ArrayList<Object>();
+						    			for(Object obj2:childrenArray2){
+											if(obj2 != null && categoryObjectMap.get(obj2.toString()) != null){
+												Map<String,String> addChildrenMap2 = new HashMap<String,String>();
+												childrenAddList2.add(categoryObjectMap.get(obj2.toString()));
+											}
+						    			}
+						    			childData1.put("children", childrenAddList2);
+						    		}
+									childrenAddList1.add(categoryObjectMap.get(obj1.toString()));
+								}
+			    			}
+			    			childData.put("children", childrenAddList1);
+			    		}
 						childrenAddList.add(categoryObjectMap.get(obj.toString()));
 					}
     			}
