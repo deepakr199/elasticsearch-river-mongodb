@@ -2,6 +2,7 @@ package org.elasticsearch.river.mongodb;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -67,13 +68,13 @@ class Slurper implements Runnable {
     private DB oplogDb;
     private DBCollection oplogCollection;
     private final AtomicLong totalDocuments = new AtomicLong();
-    private static Map<String,String> categoryMap = new HashMap<String,String>();
-    private static Map<String,String> subcategoryMap = new HashMap<String,String>();
-    private static Map<String,String> typeMap = new HashMap<String,String>();
-    private static Map<String,String> categoryURIMap = new HashMap<String,String>();
-    private static Map<String,String> subcategoryURIMap = new HashMap<String,String>();
-    private static Map<String,String> typeURIMap = new HashMap<String,String>();
-    private static Map<String,Object> productBoostMap = new HashMap<String,Object>();
+    private Map<String,String> categoryMap = null;
+    private Map<String,String> subcategoryMap = null;
+    private Map<String,String> typeMap = null;
+    private Map<String,String> categoryURIMap = null;
+    private Map<String,String> subcategoryURIMap = null;
+    private Map<String,String> typeURIMap = null;
+    private Map<String,Object> productBoostMap = null;
 
     public Slurper(List<ServerAddress> mongoServers, MongoDBRiverDefinition definition, SharedContext context, Client client) {
         this.definition = definition;
@@ -94,9 +95,15 @@ class Slurper implements Runnable {
         }
     }
 
-    private static void initializeMap(DBCollection parentCollection){
+    private void initializeMap(DBCollection parentCollection){
 		
 		DBCursor dbCursor = parentCollection.find();
+		categoryMap = new ConcurrentHashMap<String,String>();
+		subcategoryMap = new ConcurrentHashMap<String,String>();
+		typeMap = new ConcurrentHashMap<String,String>();
+		categoryURIMap = new ConcurrentHashMap<String,String>();
+		subcategoryURIMap = new ConcurrentHashMap<String,String>();
+		typeURIMap = new ConcurrentHashMap<String,String>();
 		
 		while(dbCursor.hasNext()){
 
@@ -133,6 +140,15 @@ class Slurper implements Runnable {
 			
 		}
 		
+	}
+    
+    private void initializeBoostMap(DBCollection parentCollection){
+		DBCursor dbCursor = parentCollection.find();
+		productBoostMap = new ConcurrentHashMap<String,Object>();
+		while(dbCursor.hasNext()){
+			DBObject dbObject = dbCursor.next();
+			productBoostMap.put(dbObject.get("_id").toString(), dbObject.get("boost"));
+		}
 	}
     
     @Override
@@ -251,6 +267,7 @@ class Slurper implements Runnable {
         // DBCollection slurpedCollection =
         // slurpedDb.getCollection(definition.getMongoCollection());
 
+    	clearMaps();	//Clear cache maps
         logger.info("MongoDBRiver is beginning initial import of " + collection.getFullName());
         Timestamp<?> startTimestamp = getCurrentOplogTimestamp();
         boolean inProgress = true;
@@ -277,6 +294,7 @@ class Slurper implements Runnable {
                     }
                     inProgress = false;
                     logger.info("Number documents indexed: {}", count);
+                    clearMaps(); //Clear cache maps
                 } else {
                     // TODO: To be optimized.
                     // https://github.com/mongodb/mongo-java-driver/pull/48#issuecomment-25241988
@@ -760,7 +778,7 @@ class Slurper implements Runnable {
             throws InterruptedException {
     	
     	if(collection.equals("catalog")){
-    	if(categoryMap.size() == 0){
+    	if(categoryMap == null){
     		DBCollection categoryCollection = slurpedDb.getCollection("categories");
     		initializeMap(categoryCollection);
     		logger.warn("Category map {}",categoryMap);
@@ -768,18 +786,14 @@ class Slurper implements Runnable {
     		logger.warn("Type map {}",typeMap);
     		logger.warn("Category size - {}, Subcategory size - {}, Type size - {}",categoryMap.size(),subcategoryMap.size(),typeMap.size());
     	}
-    	if(productBoostMap.size() == 0){
+    	if(productBoostMap == null){
     		DBCollection productBoostColl = slurpedDb.getCollection("product_boost");
-    		DBCursor dbCursor = productBoostColl.find();
-    		while(dbCursor.hasNext()){
-    			DBObject dbObject = dbCursor.next();
-    			productBoostMap.put(dbObject.get("_id").toString(), dbObject.get("boost"));
-    		}
+    		initializeBoostMap(productBoostColl);
     		logger.warn("Product Boost Map {}",productBoostMap);
     		logger.warn("Product Boost size {}",productBoostMap.size());
     	}
 
-    	if(productBoostMap.get(data.get("_id").toString()) != null){
+    	if(productBoostMap.get(String.valueOf(data.get("_id"))) != null){
     		logger.warn("Adding boost for id {}",data.get("_id").toString());
     		data.put("boost",productBoostMap.get(data.get("_id").toString()));
     	}
@@ -820,6 +834,7 @@ class Slurper implements Runnable {
 		data.put("categories", categoryAddList);
 		
 		BasicDBList typeList = (BasicDBList) data.get("types");
+		if(typeList != null){
 		Object[] typeArray = typeList.toArray();
 		List<Map> typeAddList = new ArrayList<Map>();
 		for(Object obj:typeArray){
@@ -845,6 +860,7 @@ class Slurper implements Runnable {
 
 		}
 		data.put("types", typeAddList);
+		}
     	}
 		
         if (logger.isTraceEnabled()) {
@@ -868,6 +884,16 @@ class Slurper implements Runnable {
             context.getStream().put(new MongoDBRiver.QueueEntry(currentTimestamp, operation, data, collection));
         }
     return true;
+    }
+    
+    private void clearMaps(){
+    	categoryMap = null;
+    	subcategoryMap = null;
+    	typeMap = null;
+    	categoryURIMap = null;
+    	subcategoryURIMap = null;
+    	typeURIMap = null;
+    	productBoostMap = null;
     }
 
 }
