@@ -95,8 +95,9 @@ class Slurper implements Runnable {
     }
 
     private void initializeCategoryMap(DBCollection parentCollection){
-		
-		DBCursor dbCursor = parentCollection.find();
+		BasicDBObject query = new BasicDBObject();
+		BasicDBObject fields = new BasicDBObject("_id",0).append("created_at",0).append("updated_at",0).append("store",0).append("filter",0);
+		DBCursor dbCursor = parentCollection.find(query, fields);
 	    categoryObjectMap = new ConcurrentHashMap<String,Object>();
 	    categoryMap = new ConcurrentHashMap<String,String>();
 	    categoryURIMap = new ConcurrentHashMap<String,String>();
