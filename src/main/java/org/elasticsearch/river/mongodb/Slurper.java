@@ -799,6 +799,7 @@ class Slurper implements Runnable {
     	}
     	
     	BasicDBList categoryList = (BasicDBList) data.get("categories");
+    	if(categoryList != null){
 		Object[] categoryArray = categoryList.toArray();
 		List<Map> categoryAddList = new ArrayList<Map>();
 		for(Object obj:categoryArray){
@@ -832,6 +833,7 @@ class Slurper implements Runnable {
 			}
 		}
 		data.put("categories", categoryAddList);
+    	}
 		
 		BasicDBList typeList = (BasicDBList) data.get("types");
 		if(typeList != null){
