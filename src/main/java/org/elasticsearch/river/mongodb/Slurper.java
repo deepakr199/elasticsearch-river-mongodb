@@ -813,11 +813,13 @@ class Slurper implements Runnable {
 				if(categoryMap.get(i.toString()) != null && categoryLevelMap.get(i.toString()) != null){
 					Map<String,String> addCategoryMap = new HashMap<String,String>();
 					addCategoryMap.put("cat_id", i.toString());
-					addCategoryMap.put("category_level_"+categoryLevelMap.get(i.toString()), categoryMap.get(i.toString()));
 					addCategoryMap.put("category", categoryMap.get(i.toString()));
 					addCategoryMap.put("category_uri", categoryURIMap.get(i.toString()));
-					addCategoryMap.put("category_level_"+categoryLevelMap.get(i.toString())+"_uri", categoryURIMap.get(i.toString()));
-	
+					DBObject categoryObject = (DBObject)categoryObjectMap.get(i.toString());
+					if(categoryObject != null){
+						addCategoryMap.put("category_level", categoryObject.get("level").toString());
+					}
+
 					categoryAddList.add(addCategoryMap);
 				}else{
 					Map<String,String> addCategoryMap = new HashMap<String,String>();
@@ -870,7 +872,7 @@ class Slurper implements Runnable {
 						Map<String,String> addChildrenMap = new HashMap<String,String>();
 						DBObject childData = (DBObject)categoryObjectMap.get(obj.toString());
 						//second level children
-			    		BasicDBList childrenList1 = (BasicDBList) childData.get("children");
+						ArrayList childrenList1 = (ArrayList) childData.get("children");
 			    		if(childrenList1 != null){
 			    			Object[] childrenArray1 = childrenList1.toArray();
 			    			List<Object> childrenAddList1 = new ArrayList<Object>();
@@ -879,13 +881,41 @@ class Slurper implements Runnable {
 									Map<String,String> addChildrenMap1 = new HashMap<String,String>();
 									DBObject childData1 = (DBObject)categoryObjectMap.get(obj1.toString());
 									//third level children
-						    		BasicDBList childrenList2 = (BasicDBList) childData1.get("children");
+									ArrayList childrenList2 = (ArrayList) childData1.get("children");
 						    		if(childrenList2 != null){
 						    			Object[] childrenArray2 = childrenList2.toArray();
 						    			List<Object> childrenAddList2 = new ArrayList<Object>();
 						    			for(Object obj2:childrenArray2){
 											if(obj2 != null && categoryObjectMap.get(obj2.toString()) != null){
 												Map<String,String> addChildrenMap2 = new HashMap<String,String>();
+												DBObject childData2 = (DBObject)categoryObjectMap.get(obj2.toString());
+												//fourth level children
+												ArrayList childrenList3 = (ArrayList) childData2.get("children");
+									    		if(childrenList3 != null){
+									    			Object[] childrenArray3 = childrenList3.toArray();
+									    			List<Object> childrenAddList3 = new ArrayList<Object>();
+									    			for(Object obj3:childrenArray3){
+														if(obj3 != null && categoryObjectMap.get(obj3.toString()) != null){
+															Map<String,String> addChildrenMap3 = new HashMap<String,String>();
+															DBObject childData3 = (DBObject)categoryObjectMap.get(obj2.toString());
+															//fifth level children
+															ArrayList childrenList4 = (ArrayList) childData3.get("children");
+												    		if(childrenList4 != null){
+												    			Object[] childrenArray4 = childrenList4.toArray();
+												    			List<Object> childrenAddList4 = new ArrayList<Object>();
+												    			for(Object obj4:childrenArray4){
+																	if(obj4 != null && categoryObjectMap.get(obj4.toString()) != null){
+																		Map<String,String> addChildrenMap4 = new HashMap<String,String>();
+																		childrenAddList4.add(categoryObjectMap.get(obj4.toString()));
+																	}
+												    			}
+												    			childData3.put("children", childrenAddList4);
+												    		}
+															childrenAddList3.add(categoryObjectMap.get(obj3.toString()));
+														}
+									    			}
+									    			childData2.put("children", childrenAddList3);
+									    		}
 												childrenAddList2.add(categoryObjectMap.get(obj2.toString()));
 											}
 						    			}
