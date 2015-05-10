@@ -144,13 +144,13 @@ class Slurper implements Runnable {
 				}
 			}
 			}
-			BasicDBObject removeSubCategory = (BasicDBObject) dbObject;
-			removeSubCategory.removeField("sub_categories");
-			removeSubCategory.removeField("types");
-			categoryObjectMap.put(dbObject.get("id").toString(), dbObject);
-			
+			if(((Number)dbObject.get("status")).intValue() == 1){
+				BasicDBObject removeSubCategory = (BasicDBObject) dbObject;
+				removeSubCategory.removeField("sub_categories");
+				removeSubCategory.removeField("types");
+				categoryObjectMap.put(dbObject.get("id").toString(), dbObject);
+			}
 		}
-		
 	}
     
     private void initializeFilterMap(DBCollection parentCollection){
