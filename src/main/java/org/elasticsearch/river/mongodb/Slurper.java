@@ -70,8 +70,12 @@ class Slurper implements Runnable {
     private final AtomicLong totalDocuments = new AtomicLong();
     private Map<String,Object> categoryObjectMap = null;
     private Map<String,String> categoryMap = null;
+    private Map<String,String> subcategoryMap = null;
+    private Map<String,String> typeMap = null;
     private Map<String,String> categoryURIMap = null;
-    private Map<String,String> categoryLevelMap = null;
+    private Map<String,String> subcategoryURIMap = null;
+    private Map<String,String> typeURIMap = null;
+    private Map<String,String> categoryURIIdMap = null;
     private Map<String,Object> productBoostMap = null;
     private Map<String,Object> filterMap = null;
 
@@ -99,19 +103,22 @@ class Slurper implements Runnable {
 		BasicDBObject fields = new BasicDBObject("_id",0).append("created_at",0).append("updated_at",0).append("store",0).append("filter",0);
 		DBCursor dbCursor = parentCollection.find(query, fields);
 	    categoryObjectMap = new ConcurrentHashMap<String,Object>();
-	    categoryMap = new ConcurrentHashMap<String,String>();
-	    categoryURIMap = new ConcurrentHashMap<String,String>();
-	    categoryLevelMap = new ConcurrentHashMap<String,String>();
+		categoryMap = new ConcurrentHashMap<String,String>();
+		subcategoryMap = new ConcurrentHashMap<String,String>();
+		typeMap = new ConcurrentHashMap<String,String>();
+		categoryURIMap = new ConcurrentHashMap<String,String>();
+		subcategoryURIMap = new ConcurrentHashMap<String,String>();
+		typeURIMap = new ConcurrentHashMap<String,String>();
+		categoryURIIdMap = new ConcurrentHashMap<String,String>();
 		
 		while(dbCursor.hasNext()){
 
 			DBObject dbObject = dbCursor.next();
 			categoryMap.put(dbObject.get("id").toString(), dbObject.get("title").toString());
 			categoryURIMap.put(dbObject.get("id").toString(), String.valueOf(dbObject.get("uri")));
-			categoryLevelMap.put(dbObject.get("id").toString(), String.valueOf(dbObject.get("level")));
-			categoryObjectMap.put(dbObject.get("id").toString(), dbObject);
+			categoryURIIdMap.put(String.valueOf(dbObject.get("uri")), dbObject.get("id").toString());
 
-/*			if(dbObject.get("sub_categories") != null){
+			if(dbObject.get("sub_categories") != null){
 			BasicDBList subCategoryList = (BasicDBList)dbObject.get("sub_categories");
 			BasicDBObject[] subCatDBObjects =  subCategoryList.toArray(new BasicDBObject[0]);
 			for(BasicDBObject basicDBObject:subCatDBObjects){
@@ -136,7 +143,11 @@ class Slurper implements Runnable {
 					typeURIMap.put(basicDBObject.get("id").toString(), String.valueOf(basicDBObject.get("uri")));
 				}
 			}
-			}*/
+			}
+			BasicDBObject removeSubCategory = (BasicDBObject) dbObject;
+			removeSubCategory.removeField("sub_categories");
+			removeSubCategory.removeField("types");
+			categoryObjectMap.put(dbObject.get("id").toString(), dbObject);
 			
 		}
 		
@@ -784,12 +795,16 @@ class Slurper implements Runnable {
 
     private boolean addToStream(final Operation operation, final Timestamp<?> currentTimestamp, final DBObject data, final String collection)
             throws InterruptedException {
+    	
+    	if(data.get("id") != null){
     	if(collection.equals("catalog")){
     	if(categoryMap == null){
-    		DBCollection categoryCollection = slurpedDb.getCollection("categories_test");
+    		DBCollection categoryCollection = slurpedDb.getCollection("categories");
     		initializeCategoryMap(categoryCollection);
     		logger.warn("Category map {}",categoryMap);
-    		logger.warn("Category size - {}",categoryMap.size());
+    		logger.warn("Sub Category map {}",subcategoryMap);
+    		logger.warn("Type map {}",typeMap);
+    		logger.warn("Category size - {}, Subcategory size - {}, Type size - {}",categoryMap.size(),subcategoryMap.size(),typeMap.size());
     	}
     	if(productBoostMap == null){
     		DBCollection productBoostColl = slurpedDb.getCollection("product_boost");
@@ -803,6 +818,39 @@ class Slurper implements Runnable {
     		data.put("boost",productBoostMap.get(data.get("_id").toString()));
     	}
     	
+    	BasicDBList categoryTagList = (BasicDBList) data.get("category_tags");
+    	if(categoryTagList != null){
+		Object[] categoryTagArray = categoryTagList.toArray();
+		List<Map> categoryTagAddList = new ArrayList<Map>();
+		for(Object obj:categoryTagArray){
+			if(obj != null){
+				String categoryuri = obj.toString();
+				if(categoryURIIdMap.get(categoryuri) != null){
+					Map<String,String> addCategoryTagMap = new HashMap<String,String>();
+					String id = categoryURIIdMap.get(categoryuri);
+					addCategoryTagMap.put("category_id", id);
+					addCategoryTagMap.put("category_tag", categoryuri);
+					addCategoryTagMap.put("category", categoryMap.get(id));
+					DBObject categoryObject = (DBObject)categoryObjectMap.get(id);
+					if(categoryObject != null){
+						addCategoryTagMap.put("category_level", categoryObject.get("level").toString());
+					}
+
+					categoryTagAddList.add(addCategoryTagMap);
+				}else{
+					Map<String,String> addCategoryTagMap = new HashMap<String,String>();
+					addCategoryTagMap.put("category_tag", categoryuri);
+					categoryTagAddList.add(addCategoryTagMap);
+				}
+			}else{
+				Map<String,String> addCategoryTagMap = new HashMap<String,String>();
+				addCategoryTagMap.put("category_tag", "");
+				categoryTagAddList.add(addCategoryTagMap);
+			}
+		}
+		data.put("category_tags", categoryTagAddList);
+    	}
+    	
     	BasicDBList categoryList = (BasicDBList) data.get("categories");
     	if(categoryList != null){
 		Object[] categoryArray = categoryList.toArray();
@@ -810,16 +858,19 @@ class Slurper implements Runnable {
 		for(Object obj:categoryArray){
 			if(obj != null){
 				Integer i = new Double(obj.toString()).intValue();
-				if(categoryMap.get(i.toString()) != null && categoryLevelMap.get(i.toString()) != null){
+				if(subcategoryMap.get(i.toString()) != null){
+					Map<String,String> addSubCategoryMap = new HashMap<String,String>();
+					addSubCategoryMap.put("subcat_id", i.toString());
+					addSubCategoryMap.put("subcategory_name", subcategoryMap.get(i.toString()));
+					addSubCategoryMap.put("subcategory_uri", subcategoryURIMap.get(i.toString()));
+	
+					categoryAddList.add(addSubCategoryMap);
+				} if(categoryMap.get(i.toString()) != null){
 					Map<String,String> addCategoryMap = new HashMap<String,String>();
 					addCategoryMap.put("cat_id", i.toString());
-					addCategoryMap.put("category", categoryMap.get(i.toString()));
+					addCategoryMap.put("category_name", categoryMap.get(i.toString()));
 					addCategoryMap.put("category_uri", categoryURIMap.get(i.toString()));
-					DBObject categoryObject = (DBObject)categoryObjectMap.get(i.toString());
-					if(categoryObject != null){
-						addCategoryMap.put("category_level", categoryObject.get("level").toString());
-					}
-
+	
 					categoryAddList.add(addCategoryMap);
 				}else{
 					Map<String,String> addCategoryMap = new HashMap<String,String>();
@@ -834,8 +885,37 @@ class Slurper implements Runnable {
 		}
 		data.put("categories", categoryAddList);
     	}
+		
+		BasicDBList typeList = (BasicDBList) data.get("types");
+		if(typeList != null){
+		Object[] typeArray = typeList.toArray();
+		List<Map> typeAddList = new ArrayList<Map>();
+		for(Object obj:typeArray){
+			if(obj != null){
+				Integer i = new Double(obj.toString()).intValue();
+				if(typeMap.get(i.toString()) != null){
+					Map<String,String> addTypeMap = new HashMap<String,String>();
+					addTypeMap.put("id", i.toString());
+					addTypeMap.put("product_type", typeMap.get(i.toString()));
+					addTypeMap.put("type_uri", typeURIMap.get(i.toString()));
+				
+					typeAddList.add(addTypeMap);
+				}else{
+					Map<String,String> addTypeMap = new HashMap<String,String>();
+					addTypeMap.put("id", i.toString());
+					typeAddList.add(addTypeMap);
+				}
+			}else{
+				Map<String,String> addTypeMap = new HashMap<String,String>();
+				addTypeMap.put("id", "");
+				typeAddList.add(addTypeMap);
+			}
 
-    	} else if(collection.equals("categories_test")){		//Handle pushing categories data
+		}
+		data.put("types", typeAddList);
+		}
+
+    	} else if(collection.equals("categories")){		//Handle pushing categories data
     		//Filter attribute
     		if(filterMap == null){
     			DBCollection categoryFilterColl = slurpedDb.getCollection("category_filter");
@@ -859,7 +939,7 @@ class Slurper implements Runnable {
     		
     		//Children attribute
     		if(categoryMap == null){
-        		DBCollection categoryCollection = slurpedDb.getCollection("categories_test");
+        		DBCollection categoryCollection = slurpedDb.getCollection("categories");
         		initializeCategoryMap(categoryCollection);
         	}
     		//first level children
@@ -931,14 +1011,14 @@ class Slurper implements Runnable {
     			}
     			data.put("children", childrenAddList);
     		}
-    		
+    					
     		//Parent attribute
-    		Integer parentObject = (Integer) data.get("parent");
+    		Integer parentObject = ((Number) data.get("parent")).intValue();
 			if(parentObject != null && categoryMap.get(parentObject.toString()) != null){
 				data.put("parent_name", categoryMap.get(parentObject.toString()));
 				data.put("parent_uri", categoryURIMap.get(parentObject.toString()));
 			}
-			
+
 			List<Map> breadcrumbs = new ArrayList<Map>();
 			int level = (Integer)data.get("level");
 			for(int i=(Integer)data.get("level");i>2;i--){
@@ -954,6 +1034,7 @@ class Slurper implements Runnable {
 			}
 			data.put("breadcrumb",breadcrumbs);
 
+    	}
     	}
 		
         if (logger.isTraceEnabled()) {
@@ -981,17 +1062,21 @@ class Slurper implements Runnable {
 
     
     private void clearMaps(){
-        categoryMap = null;
-        categoryURIMap = null;
-        categoryLevelMap = null;
+    	categoryMap = null;
+    	subcategoryMap = null;
+    	typeMap = null;
+    	categoryURIMap = null;
+    	subcategoryURIMap = null;
+    	typeURIMap = null;
         productBoostMap = null;
         filterMap = null;
         categoryObjectMap = null;
+        categoryURIIdMap = null;
     }
     
     private DBObject getParentCategory(int categoryId){
     	DBObject category = null;
-		DBCollection categoryCollection = slurpedDb.getCollection("categories_test");
+		DBCollection categoryCollection = slurpedDb.getCollection("categories");
 		category = categoryCollection.findOne(new BasicDBObject().append("id",categoryId));
     	return category;
     }
