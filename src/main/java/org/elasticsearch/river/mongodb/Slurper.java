@@ -799,7 +799,7 @@ class Slurper implements Runnable {
     	if(data.get("id") != null){
     	if(collection.equals("catalog")){
     	if(categoryMap == null){
-    		DBCollection categoryCollection = slurpedDb.getCollection("categories");
+    		DBCollection categoryCollection = slurpedDb.getCollection("categories_test");
     		initializeCategoryMap(categoryCollection);
     		logger.warn("Category map {}",categoryMap);
     		logger.warn("Sub Category map {}",subcategoryMap);
@@ -915,7 +915,7 @@ class Slurper implements Runnable {
 		data.put("types", typeAddList);
 		}
 
-    	} else if(collection.equals("categories")){		//Handle pushing categories data
+    	} else if(collection.equals("categories_test")){		//Handle pushing categories data
     		//Filter attribute
     		if(filterMap == null){
     			DBCollection categoryFilterColl = slurpedDb.getCollection("category_filter");
@@ -939,7 +939,7 @@ class Slurper implements Runnable {
     		
     		//Children attribute
     		if(categoryMap == null){
-        		DBCollection categoryCollection = slurpedDb.getCollection("categories");
+        		DBCollection categoryCollection = slurpedDb.getCollection("categories_test");
         		initializeCategoryMap(categoryCollection);
         	}
     		//first level children
@@ -1076,7 +1076,7 @@ class Slurper implements Runnable {
     
     private DBObject getParentCategory(int categoryId){
     	DBObject category = null;
-		DBCollection categoryCollection = slurpedDb.getCollection("categories");
+		DBCollection categoryCollection = slurpedDb.getCollection("categories_test");
 		category = categoryCollection.findOne(new BasicDBObject().append("id",categoryId));
     	return category;
     }
