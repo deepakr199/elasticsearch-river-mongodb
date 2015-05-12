@@ -834,6 +834,7 @@ class Slurper implements Runnable {
 					DBObject categoryObject = (DBObject)categoryObjectMap.get(id);
 					if(categoryObject != null){
 						addCategoryTagMap.put("category_level", categoryObject.get("level").toString());
+						addCategoryTagMap.put("is_leaf", categoryObject.get("is_leaf").toString());
 					}
 
 					categoryTagAddList.add(addCategoryTagMap);
