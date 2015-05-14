@@ -76,8 +76,6 @@ class Slurper implements Runnable {
     private Map<String,String> subcategoryURIMap = null;
     private Map<String,String> typeURIMap = null;
     private Map<String,String> categoryURIIdMap = null;
-    private Map<String,Object> productBoostMap = null;
-    private Map<String,Object> filterMap = null;
 
     public Slurper(List<ServerAddress> mongoServers, MongoDBRiverDefinition definition, SharedContext context, Client client) {
         this.definition = definition;
@@ -150,24 +148,6 @@ class Slurper implements Runnable {
 				removeSubCategory.removeField("types");
 				categoryObjectMap.put(dbObject.get("id").toString(), dbObject);
 			}
-		}
-	}
-    
-    private void initializeFilterMap(DBCollection parentCollection){
-		DBCursor dbCursor = parentCollection.find();
-		filterMap = new ConcurrentHashMap<String,Object>();
-		while(dbCursor.hasNext()){
-			DBObject dbObject = dbCursor.next();
-			filterMap.put(dbObject.get("id").toString(), dbObject);
-		}
-	}
-    
-    private void initializeBoostMap(DBCollection parentCollection){
-		DBCursor dbCursor = parentCollection.find();
-		productBoostMap = new ConcurrentHashMap<String,Object>();
-		while(dbCursor.hasNext()){
-			DBObject dbObject = dbCursor.next();
-			productBoostMap.put(dbObject.get("_id").toString(), dbObject.get("boost"));
 		}
 	}
     
@@ -799,23 +779,18 @@ class Slurper implements Runnable {
     	if(data.get("id") != null){
     	if(collection.equals("catalog")){
     	if(categoryMap == null){
-    		DBCollection categoryCollection = slurpedDb.getCollection("categories_test");
+    		DBCollection categoryCollection = slurpedDb.getCollection("categories");
     		initializeCategoryMap(categoryCollection);
     		logger.warn("Category map {}",categoryMap);
     		logger.warn("Sub Category map {}",subcategoryMap);
     		logger.warn("Type map {}",typeMap);
     		logger.warn("Category size - {}, Subcategory size - {}, Type size - {}",categoryMap.size(),subcategoryMap.size(),typeMap.size());
     	}
-    	if(productBoostMap == null){
-    		DBCollection productBoostColl = slurpedDb.getCollection("product_boost");
-    		initializeBoostMap(productBoostColl);
-    		logger.warn("Product Boost Map {}",productBoostMap);
-    		logger.warn("Product Boost size {}",productBoostMap.size());
-    	}
 
-    	if(productBoostMap.get(String.valueOf(data.get("_id"))) != null){
+    	Object boostObject = getProductBoost(String.valueOf(data.get("_id")));
+    	if(boostObject != null){
     		logger.warn("Adding boost for id {}",data.get("_id").toString());
-    		data.put("boost",productBoostMap.get(data.get("_id").toString()));
+    		data.put("boost", boostObject);
     	}
     	
     	BasicDBList categoryTagList = (BasicDBList) data.get("category_tags");
@@ -916,13 +891,8 @@ class Slurper implements Runnable {
 		data.put("types", typeAddList);
 		}
 
-    	} else if(collection.equals("categories_test")){		//Handle pushing categories data
+    	} else if(collection.equals("categories")){		//Handle pushing categories data
     		//Filter attribute
-    		if(filterMap == null){
-    			DBCollection categoryFilterColl = slurpedDb.getCollection("category_filter");
-    			initializeFilterMap(categoryFilterColl);
-    		}
-
     		BasicDBList filterList = (BasicDBList) data.get("filter");
     		if(filterList != null){
     			List<Object> filterAddList = new ArrayList<Object>();
@@ -930,84 +900,80 @@ class Slurper implements Runnable {
     				if(obj != null){
     					DBObject dbObject  = (DBObject) obj;
 
-    					if(filterMap.get(dbObject.get("id").toString()) != null){
-    						filterAddList.add(filterMap.get(dbObject.get("id").toString()));
+    					if(dbObject.get("id") != null){
+    						filterAddList.add(getFilterObject((Integer)dbObject.get("id")));
     					}
     				}
     			}
         		data.put("filter", filterAddList);
     		}
     		
-    		//Children attribute
-    		if(categoryMap == null){
-        		DBCollection categoryCollection = slurpedDb.getCollection("categories_test");
-        		initializeCategoryMap(categoryCollection);
-        	}
     		//first level children
     		BasicDBList childrenList = (BasicDBList) data.get("children");
     		if(childrenList != null){
     			Object[] childrenArray = childrenList.toArray();
     			List<Object> childrenAddList = new ArrayList<Object>();
     			for(Object obj:childrenArray){
-					if(obj != null && categoryObjectMap.get(obj.toString()) != null){
+    				DBObject childData = getCategoryObject(obj);
+					if(obj != null && childData != null){
 						Map<String,String> addChildrenMap = new HashMap<String,String>();
-						DBObject childData = (DBObject)categoryObjectMap.get(obj.toString());
 						//second level children
 						ArrayList childrenList1 = (ArrayList) childData.get("children");
 			    		if(childrenList1 != null){
 			    			Object[] childrenArray1 = childrenList1.toArray();
 			    			List<Object> childrenAddList1 = new ArrayList<Object>();
 			    			for(Object obj1:childrenArray1){
-								if(obj1 != null && categoryObjectMap.get(obj1.toString()) != null){
+			    				DBObject childData1 = getCategoryObject(obj1);
+								if(obj1 != null && childData1 != null){
 									Map<String,String> addChildrenMap1 = new HashMap<String,String>();
-									DBObject childData1 = (DBObject)categoryObjectMap.get(obj1.toString());
 									//third level children
 									ArrayList childrenList2 = (ArrayList) childData1.get("children");
 						    		if(childrenList2 != null){
 						    			Object[] childrenArray2 = childrenList2.toArray();
 						    			List<Object> childrenAddList2 = new ArrayList<Object>();
 						    			for(Object obj2:childrenArray2){
-											if(obj2 != null && categoryObjectMap.get(obj2.toString()) != null){
+						    				DBObject childData2 = getCategoryObject(obj2);
+											if(obj2 != null && childData2 != null){
 												Map<String,String> addChildrenMap2 = new HashMap<String,String>();
-												DBObject childData2 = (DBObject)categoryObjectMap.get(obj2.toString());
 												//fourth level children
 												ArrayList childrenList3 = (ArrayList) childData2.get("children");
 									    		if(childrenList3 != null){
 									    			Object[] childrenArray3 = childrenList3.toArray();
 									    			List<Object> childrenAddList3 = new ArrayList<Object>();
 									    			for(Object obj3:childrenArray3){
-														if(obj3 != null && categoryObjectMap.get(obj3.toString()) != null){
+									    				DBObject childData3 = getCategoryObject(obj3);
+														if(obj3 != null && childData3 != null){
 															Map<String,String> addChildrenMap3 = new HashMap<String,String>();
-															DBObject childData3 = (DBObject)categoryObjectMap.get(obj2.toString());
 															//fifth level children
 															ArrayList childrenList4 = (ArrayList) childData3.get("children");
 												    		if(childrenList4 != null){
 												    			Object[] childrenArray4 = childrenList4.toArray();
 												    			List<Object> childrenAddList4 = new ArrayList<Object>();
 												    			for(Object obj4:childrenArray4){
-																	if(obj4 != null && categoryObjectMap.get(obj4.toString()) != null){
+												    				DBObject childData4 = getCategoryObject(obj4);
+																	if(obj4 != null && childData4 != null){
 																		Map<String,String> addChildrenMap4 = new HashMap<String,String>();
-																		childrenAddList4.add(categoryObjectMap.get(obj4.toString()));
+																		childrenAddList4.add(childData4);
 																	}
 												    			}
 												    			childData3.put("children", childrenAddList4);
 												    		}
-															childrenAddList3.add(categoryObjectMap.get(obj3.toString()));
+															childrenAddList3.add(childData3);
 														}
 									    			}
 									    			childData2.put("children", childrenAddList3);
 									    		}
-												childrenAddList2.add(categoryObjectMap.get(obj2.toString()));
+												childrenAddList2.add(childData2);
 											}
 						    			}
 						    			childData1.put("children", childrenAddList2);
 						    		}
-									childrenAddList1.add(categoryObjectMap.get(obj1.toString()));
+									childrenAddList1.add(childData1);
 								}
 			    			}
 			    			childData.put("children", childrenAddList1);
 			    		}
-						childrenAddList.add(categoryObjectMap.get(obj.toString()));
+						childrenAddList.add(childData);
 					}
     			}
     			data.put("children", childrenAddList);
@@ -1015,9 +981,13 @@ class Slurper implements Runnable {
     					
     		//Parent attribute
     		Integer parentObject = ((Number) data.get("parent")).intValue();
-			if(parentObject != null && categoryMap.get(parentObject.toString()) != null){
-				data.put("parent_name", categoryMap.get(parentObject.toString()));
-				data.put("parent_uri", categoryURIMap.get(parentObject.toString()));
+    		DBObject parentDBObject = getCategoryObject(parentObject);
+			if(parentObject != null && parentDBObject != null){
+				logger.warn("parent obj {}", parentDBObject.get("title"));
+				logger.warn("parent obj {}", String.valueOf(parentDBObject.get("title")));
+
+				data.put("parent_name", String.valueOf(parentDBObject.get("title")).trim());
+				data.put("parent_uri", String.valueOf(parentDBObject.get("uri")));
 			}
 
 			List<Map> breadcrumbs = new ArrayList<Map>();
@@ -1069,16 +1039,53 @@ class Slurper implements Runnable {
     	categoryURIMap = null;
     	subcategoryURIMap = null;
     	typeURIMap = null;
-        productBoostMap = null;
-        filterMap = null;
         categoryObjectMap = null;
         categoryURIIdMap = null;
     }
     
     private DBObject getParentCategory(int categoryId){
     	DBObject category = null;
-		DBCollection categoryCollection = slurpedDb.getCollection("categories_test");
+		DBCollection categoryCollection = slurpedDb.getCollection("categories");
 		category = categoryCollection.findOne(new BasicDBObject().append("id",categoryId));
     	return category;
     }
+    
+    
+    private DBObject getFilterObject(int id){
+		BasicDBObject fields = new BasicDBObject("_id",0).append("created_at",0).append("updated_at",0).append("store",0).append("filter",0).append("types",0).append("sub_categories",0);
+		BasicDBObject query = new BasicDBObject("id", id).append("status", 1);
+		
+		DBCollection categoryFilterColl = slurpedDb.getCollection("categories_filter");
+		DBObject dbObject = categoryFilterColl.findOne(query, fields);
+		
+		return dbObject;
+	}
+    
+    private DBObject getCategoryObject(Object id){
+
+    	if(id != null){
+    		int categoryId = (Integer) id;
+        	logger.warn("categoryId {} ",categoryId);
+			BasicDBObject fields = new BasicDBObject("_id",0).append("created_at",0).append("updated_at",0).append("store",0).append("filter",0).append("types",0).append("sub_categories",0);
+			BasicDBObject query = new BasicDBObject("id", categoryId).append("status", 1);
+
+			DBCollection categoryColl = slurpedDb.getCollection("categories");
+			DBObject dbObject = categoryColl.findOne(query, fields);
+			
+	    	logger.warn("category {} ",dbObject);
+			return dbObject;
+    	}else{
+    		return null;
+    	}
+	}
+    
+    private Object getProductBoost(String id){
+		DBCollection productBoostColl = slurpedDb.getCollection("product_boost");
+		BasicDBObject query = new BasicDBObject("_id", new ObjectId(id));
+		DBObject dbObject = productBoostColl.findOne(query);
+		if(dbObject != null){
+			return dbObject.get("boost");
+		}
+		return null;
+	}
 }
