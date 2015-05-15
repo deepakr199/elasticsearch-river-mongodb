@@ -983,9 +983,6 @@ class Slurper implements Runnable {
     		Integer parentObject = ((Number) data.get("parent")).intValue();
     		DBObject parentDBObject = getCategoryObject(parentObject);
 			if(parentObject != null && parentDBObject != null){
-				logger.warn("parent obj {}", parentDBObject.get("title"));
-				logger.warn("parent obj {}", String.valueOf(parentDBObject.get("title")));
-
 				data.put("parent_name", String.valueOf(parentDBObject.get("title")).trim());
 				data.put("parent_uri", String.valueOf(parentDBObject.get("uri")));
 			}
@@ -1052,12 +1049,11 @@ class Slurper implements Runnable {
     
     
     private DBObject getFilterObject(int id){
-		BasicDBObject fields = new BasicDBObject("_id",0).append("created_at",0).append("updated_at",0).append("store",0).append("filter",0).append("types",0).append("sub_categories",0);
+		BasicDBObject fields = new BasicDBObject("_id",0).append("created_at",0).append("updated_at",0);
 		BasicDBObject query = new BasicDBObject("id", id).append("status", 1);
 		
-		DBCollection categoryFilterColl = slurpedDb.getCollection("categories_filter");
+		DBCollection categoryFilterColl = slurpedDb.getCollection("category_filter");
 		DBObject dbObject = categoryFilterColl.findOne(query, fields);
-		
 		return dbObject;
 	}
     
@@ -1065,14 +1061,12 @@ class Slurper implements Runnable {
 
     	if(id != null){
     		int categoryId = (Integer) id;
-        	logger.warn("categoryId {} ",categoryId);
 			BasicDBObject fields = new BasicDBObject("_id",0).append("created_at",0).append("updated_at",0).append("store",0).append("filter",0).append("types",0).append("sub_categories",0);
 			BasicDBObject query = new BasicDBObject("id", categoryId).append("status", 1);
 
 			DBCollection categoryColl = slurpedDb.getCollection("categories");
 			DBObject dbObject = categoryColl.findOne(query, fields);
 			
-	    	logger.warn("category {} ",dbObject);
 			return dbObject;
     	}else{
     		return null;
