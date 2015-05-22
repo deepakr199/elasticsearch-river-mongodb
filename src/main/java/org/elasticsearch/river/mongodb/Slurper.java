@@ -800,6 +800,12 @@ class Slurper implements Runnable {
 		for(Object obj:categoryTagArray){
 			if(obj != null){
 				String categoryuri = obj.toString();
+				
+				if(categoryURIIdMap.get(categoryuri) == null){
+		    		DBCollection categoryCollection = slurpedDb.getCollection("categories");
+		    		initializeCategoryMap(categoryCollection);
+				}
+				
 				if(categoryURIIdMap.get(categoryuri) != null){
 					Map<String,String> addCategoryTagMap = new HashMap<String,String>();
 					String id = categoryURIIdMap.get(categoryuri);
