@@ -790,12 +790,6 @@ class Slurper implements Runnable {
     		logger.warn("Type map {}",typeMap);
     		logger.warn("Category size - {}, Subcategory size - {}, Type size - {}",categoryMap.size(),subcategoryMap.size(),typeMap.size());
     	}
-
-    	Object boostObject = getProductBoost(String.valueOf(data.get("_id")));
-    	if(boostObject != null){
-    		logger.warn("Adding boost for id {}",data.get("_id").toString());
-    		data.put("boost", boostObject);
-    	}
     	
     	// Adding selling price
     	if(data.get("pricing") != null){
@@ -1138,13 +1132,4 @@ class Slurper implements Runnable {
     	}
 	}
     
-    private Object getProductBoost(String id){
-		DBCollection productBoostColl = slurpedDb.getCollection("product_boost");
-		BasicDBObject query = new BasicDBObject("_id", new ObjectId(id));
-		DBObject dbObject = productBoostColl.findOne(query);
-		if(dbObject != null){
-			return dbObject.get("boost");
-		}
-		return null;
-	}
 }
