@@ -30,7 +30,7 @@ class StatusChecker implements Runnable {
                         }
                     }
                 }
-                Thread.sleep(30000L);
+                Thread.sleep(1000L);
             } catch (InterruptedException e) {
                 MongoDBRiver.logger.info("Status thread interrupted", e, (Object) null);
                 Thread.currentThread().interrupt();
