@@ -779,7 +779,9 @@ class Slurper implements Runnable {
 
     private boolean addToStream(final Operation operation, final Timestamp<?> currentTimestamp, final DBObject data, final String collection)
             throws InterruptedException {
-    	
+    	logger.warn("{}",operation);
+    	logger.warn("{}",collection);
+    	logger.warn("{}",data);
     	if(data.get("id") != null){
     	if(collection.equals("catalog")){
     	if(categoryMap == null){
