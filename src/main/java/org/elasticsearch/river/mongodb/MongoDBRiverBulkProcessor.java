@@ -195,12 +195,20 @@ public class MongoDBRiverBulkProcessor {
 				JSONObject json = new JSONObject(source.string());
 				Map<String, Object> catalogMap = getDocument("prodcatalogindex", "id", Double.valueOf(json.get("id").toString()).intValue());
 				if (catalogMap != null && json.get("stock_status") != null) {
-					Map<String, Object> stockStatus = new HashMap<String, Object>();
-					stockStatus.put("stock_status", json.get("stock_status"));
-					catalogMap.put("inventory", stockStatus);
-					XContentBuilder parentSource = XContentFactory.jsonBuilder().map(catalogMap);
-					bulkProcessor.add(indexRequest("prodcatalogindex").type(type).id(catalogMap.get("_id").toString()).source(parentSource)
-							.routing(routing).parent(parent));
+					boolean updateCatalog = true;
+					if(catalogMap.get("inventory") != null){
+						if(String.valueOf(json.get("stock_status")).equals(String.valueOf(((Map)catalogMap.get("inventory")).get("stock_status")))){
+							updateCatalog = false;
+						}
+					}
+					if(updateCatalog){
+						Map<String, Object> stockStatus = new HashMap<String, Object>();
+						stockStatus.put("stock_status", json.get("stock_status"));
+						catalogMap.put("inventory", stockStatus);
+						XContentBuilder parentSource = XContentFactory.jsonBuilder().map(catalogMap);
+						bulkProcessor.add(indexRequest("prodcatalogindex").type(type).id(catalogMap.get("_id").toString()).source(parentSource)
+								.routing(routing).parent(parent));
+					}
 				}
 			} catch (Exception e) {
 				logger.error("{}", e.getMessage());
