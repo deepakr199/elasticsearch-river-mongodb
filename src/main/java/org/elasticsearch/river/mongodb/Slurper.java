@@ -794,11 +794,15 @@ class Slurper implements Runnable {
     	if(data.get("pricing") != null){
     		DBObject pricing = (DBObject)data.get("pricing");
     		float price = ((Number)pricing.get("price")).floatValue();
-    		float promo_price = ((Number)pricing.get("promo_price")).floatValue();
-    		if(promo_price > 0){
-    			data.put("selling_price", promo_price);
+    		if(pricing.get("promo_price") != null){
+    		  float promo_price = ((Number)pricing.get("promo_price")).floatValue();
+        		if(promo_price > 0){
+        			data.put("selling_price", promo_price);
+        		}else{
+        			data.put("selling_price", price);
+        		}
     		}else{
-    			data.put("selling_price", price);
+          data.put("selling_price", price);
     		}
     	}
     	
